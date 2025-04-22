@@ -1,119 +1,361 @@
-<!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>Video Crop & Download</title>
-  <style>
-    body { font-family: sans-serif; text-align: center; margin: 20px; }
-    video, canvas { max-width: 100%; margin-top: 10px; }
-    #cropBox {
-      position: absolute;
-      border: 2px dashed red;
-      cursor: move;
-      resize: both;
-      overflow: auto;
-    }
-  </style>
-</head>
-<body>
-  <h2>Upload, Crop, & Download Video</h2>
-  <input type="file" accept="video/*" id="upload"><br><br>
-
-  <div style="position:relative; display:inline-block;">
-    <video id="video" controls></video>
-    <div id="cropBox" style="width:150px;height:150px;left:0;top:0;"></div>
-  </div>
-  <br>
-  <button id="startCrop">Start Crop & Record</button>
-  <button id="download" disabled>Download Cropped Video</button>
-  <br><br>
-  <video id="croppedPreview" controls></video>
-
-  <script>
-    const upload = document.getElementById('upload');
-    const video = document.getElementById('video');
-    const cropBox = document.getElementById('cropBox');
-    const startCrop = document.getElementById('startCrop');
-    const downloadBtn = document.getElementById('download');
-    const croppedPreview = document.getElementById('croppedPreview');
-
-    let stream, recorder, recordedChunks = [];
-
-    // Load video
-    upload.addEventListener('change', e => {
-      const file = e.target.files[0];
-      if (!file) return;
-      const url = URL.createObjectURL(file);
-      video.src = url;
-      video.load();
-    });
-
-    // Make cropBox draggable
-    let isDragging = false, offset = {};
-    cropBox.addEventListener('mousedown', e => {
-      isDragging = true;
-      offset = {
-        x: e.clientX - cropBox.offsetLeft,
-        y: e.clientY - cropBox.offsetTop
-      };
-    });
-    window.addEventListener('mousemove', e => {
-      if (isDragging) {
-        cropBox.style.left = (e.clientX - offset.x) + 'px';
-        cropBox.style.top = (e.clientY - offset.y) + 'px';
-      }
-    });
-    window.addEventListener('mouseup', () => isDragging = false);
-
-    startCrop.addEventListener('click', () => {
-      const canvas = document.createElement('canvas');
-      const ctx = canvas.getContext('2d');
-
-      const rect = cropBox.getBoundingClientRect();
-      const videoRect = video.getBoundingClientRect();
-
-      const scaleX = video.videoWidth / videoRect.width;
-      const scaleY = video.videoHeight / videoRect.height;
-
-      const cropX = (rect.left - videoRect.left) * scaleX;
-      const cropY = (rect.top - videoRect.top) * scaleY;
-      const cropW = rect.width * scaleX;
-      const cropH = rect.height * scaleY;
-
-      canvas.width = cropW;
-      canvas.height = cropH;
-
-      stream = canvas.captureStream();
-      recorder = new MediaRecorder(stream);
-      recordedChunks = [];
-
-      recorder.ondataavailable = e => recordedChunks.push(e.data);
-      recorder.onstop = () => {
-        const blob = new Blob(recordedChunks, { type: 'video/webm' });
-        const url = URL.createObjectURL(blob);
-        croppedPreview.src = url;
-        downloadBtn.href = url;
-        downloadBtn.download = 'cropped-video.webm';
-        downloadBtn.disabled = false;
-      };
-
-      recorder.start();
-      video.play();
-
-      const draw = () => {
-        if (video.paused || video.ended) {
-          recorder.stop();
-          return;
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rakha GPT Chat</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css"></link>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        body { 
+            font-family: 'Roboto', sans-serif; 
         }
-        ctx.drawImage(video, cropX, cropY, cropW, cropH, 0, 0, cropW, cropH);
-        requestAnimationFrame(draw);
-      };
-      draw();
-    });
+        .dot-flashing {
+            position: relative;
+            width: 1em;
+            height: 1em;
+            margin: 0 auto;
+        }
+        .dot-flashing::before, .dot-flashing::after {
+            content: '';
+            display: inline-block;
+            position: absolute;
+            top: 0;
+            width: 1em;
+            height: 1em;
+            border-radius: 50%;
+            background-color: #3490dc;
+            animation: dot-flashing 1s infinite linear alternate;
+        }
+        .dot-flashing::before {
+            left: -1.5em;
+            animation-delay: 0s;
+        }
+        .dot-flashing::after {
+            left: 1.5em;
+            animation-delay: 0.5s;
+        }
+        @keyframes dot-flashing {
+            0% {
+                background-color: #3490dc;
+            }
+            50%, 100% {
+                background-color: #f3f4f6;
+            }
+        }
+        .star {
+            color: gray;
+            transition: color 0.5s ease;
+        }
+        .star.active {
+            color: gold;
+        }
+        .star-echo {
+            position: absolute;
+            font-size: 2rem;
+            opacity: 0.5;
+            animation: star-echo 1s ease-out forwards;
+        }
+        @keyframes star-echo {
+            0% {
+                transform: scale(1);
+                opacity: 0.5;
+            }
+            100% {
+                transform: scale(2);
+                opacity: 0;
+            }
+        }
+        .neon {
+            font-weight: bold;
+            animation: neon 1.5s infinite alternate;
+        }
+        @keyframes neon {
+            0% {
+                color: #ff3f3f;
+                text-shadow: 0 0 5px #ff3f3f, 0 0 10px #ff3f3f, 0 0 15px #ff3f3f, 0 0 20px #ff3f3f, 0 0 25px #ff3f3f, 0 0 30px #ff3f3f, 0 0 35px #ff3f3f;
+            }
+            50% {
+                color: #3fff3f;
+                text-shadow: 0 0 5px #3fff3f, 0 0 10px #3fff3f, 0 0 15px #3fff3f, 0 0 20px #3fff3f, 0 0 25px #3fff3f, 0 0 30px #3fff3f, 0 0 35px #3fff3f;
+            }
+            100% {
+                color: #3f3fff;
+                text-shadow: 0 0 5px #3f3fff, 0 0 10px #3f3fff, 0 0 15px #3f3fff, 0 0 20px #3f3fff, 0 0 25px #3f3fff, 0 0 30px #3f3fff, 0 0 35px #3f3fff;
+            }
+        }
+        .ping-indicator {
+            width: 1em;
+            height: 1em;
+            border-radius: 50%;
+            background-color: green;
+            transition: background-color 0.5s ease;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 flex items-center justify-center min-h-screen">
+    <div id="chatSection" class="bg-white p-6 rounded-lg shadow-lg w-full max-w-md relative">
+        <div class="flex justify-between mb-4">
+            <button id="aiToggle" onclick="toggleAI()" class="bg-red-500 text-white p-2 rounded-lg hover:bg-red-600 transition duration-300">AI Off</button>
+            <div id="pingIndicator" class="ping-indicator"></div>
+            <button id="settingsButton" onclick="toggleSettings()" class="text-gray-500 hover:text-gray-700 transition duration-300">
+                <i class="fas fa-cog text-2xl"></i>
+            </button>
+        </div>
+        <h2 class="text-2xl font-bold mb-4">Chat dengan Rakha GPT</h2>
+        <p class="text-sm text-gray-500 mb-4">Beta Version</p>
+        <textarea id="userInput" class="w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Tulis pertanyaan..."></textarea>
+        <button onclick="sendMessage()" class="w-full mt-4 bg-blue-500 text-white p-3 rounded-lg hover:bg-blue-600 transition duration-300">Kirim</button>
+        <div id="response" class="mt-6 p-4 bg-gray-100 rounded-lg"></div>
+        <button onclick="clearChat()" class="w-full mt-4 bg-red-500 text-white p-3 rounded-lg hover:bg-red-600 transition duration-300">Clear Chat</button>
+        <div class="mt-6">
+            <h3 class="text-lg font-semibold mb-2">Saran Pertanyaan:</h3>
+            <div class="flex flex-wrap gap-2">
+                <button onclick="setSuggestedQuestion('Explain how AI works')" class="bg-gray-200 p-2 rounded-lg hover:bg-gray-300 transition duration-300">Explain how AI works</button>
+                <button onclick="setSuggestedQuestion('What is machine learning?')" class="bg-gray-200 p-2 rounded-lg hover:bg-gray-300 transition duration-300">What is machine learning?</button>
+                <button onclick="setSuggestedQuestion('How does natural language processing work?')" class="bg-gray-200 p-2 rounded-lg hover:bg-gray-300 transition duration-300">How does natural language processing work?</button>
+                <button onclick="setSuggestedQuestion('What are neural networks?')" class="bg-gray-200 p-2 rounded-lg hover:bg-gray-300 transition duration-300">What are neural networks?</button>
+                <button onclick="setSuggestedQuestion('What is deep learning?')" class="bg-gray-200 p-2 rounded-lg hover:bg-gray-300 transition duration-300">What is deep learning?</button>
+                <button onclick="setSuggestedQuestion('/rtm')" class="bg-gray-200 p-2 rounded-lg hover:bg-gray-300 transition duration-300 neon">Top Pencarian: /rtm</button>
+                <button onclick="setSuggestedQuestion('/downdb')" class="bg-gray-200 p-2 rounded-lg hover:bg-gray-300 transition duration-300 neon">Download DB: /downdb</button>
+            </div>
+        </div>
+        <div class="mt-6 flex justify-center">
+            <i id="star" class="fas fa-star star text-4xl"></i>
+        </div>
+        <div class="mt-6 text-center text-gray-500 text-sm">
+            &copy; 2024 Rakha GPT. All rights reserved.
+        </div>
+    </div>
 
-    downloadBtn.addEventListener('click', () => {
-      // Done via href/download attr
-    });
-  </script>
+    <div id="settingsSection" class="bg-white p-6 rounded-lg shadow-lg w-full max-w-md relative hidden">
+        <h2 class="text-2xl font-bold mb-4">Settings</h2>
+        <div class="mb-4">
+            <label class="block text-gray-700 mb-2">Realtime Database Chat</label>
+            <select id="realtimeDatabase" class="w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <option value="enabled">Enabled</option>
+                <option value="disabled">Disabled</option>
+            </select>
+        </div>
+        <button onclick="saveSettings()" class="w-full bg-blue-500 text-white p-3 rounded-lg hover:bg-blue-600 transition duration-300">Save Settings</button>
+        <button onclick="closeSettings()" class="w-full mt-4 bg-red-500 text-white p-3 rounded-lg hover:bg-red-600 transition duration-300">Close</button>
+    </div>
+
+    <script>
+        const API_KEY = "AIzaSyCGAy04Bqo0VivT0GTbLlXWhFtou2bRzSE";
+        let aiEnabled = false;
+        let dailyLimit = 90;
+        let memoryLimit = 555.55; // in MB
+        const badWords = ["kontol", "babi", "ngentod", "kon", "memek", "mmk", "mek", "coli", "bangsat", "ngntd", "ngen", "anj", "cok", "bajingan", "m3m3k", "k0nt0l", "n93nt0d", "Lonthe", "lonte", "l0nt3", "lont3", "lhonte", "pantek", "pnte", "cuki", "puki"];
+        let users = JSON.parse(localStorage.getItem('users')) || [];
+        let currentUser = JSON.parse(localStorage.getItem('currentUser')) || null;
+        let badWordCount = 0;
+        let realtimeDatabaseEnabled = localStorage.getItem('realtimeDatabase') === 'enabled';
+
+        function toggleAI() {
+            aiEnabled = !aiEnabled;
+            const aiToggle = document.getElementById("aiToggle");
+            if (aiEnabled) {
+                aiToggle.classList.remove("bg-red-500", "hover:bg-red-600");
+                aiToggle.classList.add("bg-green-500", "hover:bg-green-600");
+                aiToggle.textContent = "AI On";
+            } else {
+                aiToggle.classList.remove("bg-green-500", "hover:bg-green-600");
+                aiToggle.classList.add("bg-red-500", "hover:bg-red-600");
+                aiToggle.textContent = "AI Off";
+            }
+        }
+
+        async function sendMessage() {
+            const userInput = document.getElementById("userInput").value;
+            const responseDiv = document.getElementById("response");
+            const star = document.getElementById("star");
+
+            if (!userInput.trim()) {
+                responseDiv.innerHTML = "<p class='text-red-500'>Masukkan pertanyaan terlebih dahulu!</p>";
+                return;
+            }
+
+            if (containsBadWords(userInput)) {
+                badWordCount++;
+                if (badWordCount >= 3) {
+                    alert('Akun Anda telah dibanned karena menggunakan kata kasar. Silakan buat akun baru.');
+                    users = users.map(user => user.username === currentUser.username ? { ...user, banned: true } : user);
+                    localStorage.setItem('users', JSON.stringify(users));
+                    currentUser = null;
+                    localStorage.removeItem('currentUser');
+                    document.getElementById('authSection').classList.remove('hidden');
+                    document.getElementById('chatSection').classList.add('hidden');
+                    badWordCount = 0;
+                } else {
+                    responseDiv.innerHTML = `<p class='text-red-500'>Pertanyaan mengandung kata kasar. Anda memiliki ${3 - badWordCount} kesempatan lagi sebelum akun dibanned.</p>`;
+                }
+                return;
+            }
+
+            if (!aiEnabled) {
+                responseDiv.innerHTML = "<p class='text-red-500'>AI nya lagi tidur nihh</p>";
+                return;
+            }
+
+            if (dailyLimit <= 0) {
+                responseDiv.innerHTML = "<p class='text-red-500'>Batas harian telah tercapai. Coba lagi besok.</p>";
+                return;
+            }
+
+            if (memoryLimit <= 0.1) {
+                responseDiv.innerHTML = "<p class='text-red-500'>Memori habis. Gunakan kode redeem untuk menambah memori.</p>";
+                return;
+            }
+
+            if (userInput.trim() === "/rtm") {
+                const currentTime = new Date().toLocaleTimeString();
+                responseDiv.innerHTML = `<p><strong>Jawaban:</strong></p><p>${currentTime}</p>`;
+                star.classList.add('active');
+                createStarEcho();
+                dailyLimit--;
+                memoryLimit -= 0.1; // Assume each request uses 0.1 MB
+                return;
+            }
+
+            if (userInput.trim() === "rakhaganteng") {
+                memoryLimit = 555.55;
+                responseDiv.innerHTML = "<p class='text-green-500'>Memori berhasil ditambahkan!</p>";
+                return;
+            }
+
+            if (userInput.trim() === "/downdb") {
+                downloadDB();
+                return;
+            }
+
+            responseDiv.innerHTML = "<div class='dot-flashing'></div>";
+
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${API_KEY}`;
+
+            const data = {
+                contents: [{ parts: [{ text: userInput }] }]
+            };
+
+            try {
+                const startTime = performance.now();
+                const response = await fetch(url, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(data)
+                });
+                const endTime = performance.now();
+                const ping = endTime - startTime;
+                updatePingIndicator(ping);
+
+                const result = await response.json();
+
+                if (result && result.candidates && result.candidates.length > 0) {
+                    responseDiv.innerHTML = `<p><strong>Jawaban:</strong></p><p>${result.candidates[0].content.parts[0].text}</p>`;
+                    star.classList.add('active');
+                    createStarEcho();
+                    dailyLimit--;
+                    memoryLimit -= 0.1; // Assume each request uses 0.1 MB
+                } else {
+                    responseDiv.innerHTML = "<p>Tidak ada respons yang diterima.</p>";
+                }
+
+            } catch (error) {
+                responseDiv.innerHTML = `<p class='text-red-500'>Error: ${error.message}</p>`;
+            }
+        }
+
+        function clearChat() {
+            document.getElementById("userInput").value = "";
+            document.getElementById("response").innerHTML = "";
+            document.getElementById("star").classList.remove('active');
+        }
+
+        function setSuggestedQuestion(question) {
+            document.getElementById("userInput").value = question;
+        }
+
+        function createStarEcho() {
+            const star = document.getElementById("star");
+            const starEcho = document.createElement('i');
+            starEcho.className = 'fas fa-star star-echo';
+            starEcho.style.left = `${star.offsetLeft}px`;
+            starEcho.style.top = `${star.offsetTop}px`;
+            document.body.appendChild(starEcho);
+            setTimeout(() => {
+                starEcho.remove();
+            }, 1000);
+        }
+
+        function updatePingIndicator(ping) {
+            const pingIndicator = document.getElementById("pingIndicator");
+            if (ping < 200) {
+                pingIndicator.style.backgroundColor = "green";
+            } else {
+                pingIndicator.style.backgroundColor = "red";
+            }
+        }
+
+        function containsBadWords(text) {
+            const lowerText = text.toLowerCase();
+            return badWords.some(word => lowerText.includes(word));
+        }
+
+        function downloadDB() {
+            const dbContent = users.map(user => `Username: ${user.username}, Password: ${user.password}, Status: ${user.banned ? 'Banned' : 'Active'}`).join('\n');
+            const blob = new Blob([dbContent], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'user_db.txt';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+        }
+
+        function toggleSettings() {
+            const settingsSection = document.getElementById('settingsSection');
+            const chatSection = document.getElementById('chatSection');
+            if (settingsSection.classList.contains('hidden')) {
+                settingsSection.classList.remove('hidden');
+                chatSection.classList.add('hidden');
+            } else {
+                settingsSection.classList.add('hidden');
+                chatSection.classList.remove('hidden');
+            }
+        }
+
+        function saveSettings() {
+            const realtimeDatabase = document.getElementById('realtimeDatabase').value;
+            localStorage.setItem('realtimeDatabase', realtimeDatabase);
+            realtimeDatabaseEnabled = realtimeDatabase === 'enabled';
+            alert('Settings saved!');
+        }
+
+        function closeSettings() {
+            toggleSettings();
+        }
+
+        setInterval(async () => {
+            const startTime = performance.now();
+            try {
+                await fetch("https://www.google.com", { method: "HEAD" });
+                const endTime = performance.now();
+                const ping = endTime - startTime;
+                updatePingIndicator(ping);
+            } catch (error) {
+                updatePingIndicator(1000); // Set to high ping if request fails
+            }
+        }, 5000); // Ping every 5 seconds
+
+        // Load settings from local storage
+        window.onload = () => {
+            const savedRealtimeDatabase = localStorage.getItem('realtimeDatabase');
+            if (savedRealtimeDatabase !== null) {
+                document.getElementById('realtimeDatabase').value = savedRealtimeDatabase;
+                realtimeDatabaseEnabled = savedRealtimeDatabase === 'enabled';
+            }
+        };
+    </script>
 </body>
 </html>
