@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Video Crop & Download</title>
+  <style>
+    body { font-family: sans-serif; text-align: center; margin: 20px; }
+    video, canvas { max-width: 100%; margin-top: 10px; }
+    #cropBox {
+      position: absolute;
+      border: 2px dashed red;
+      cursor: move;
+      resize: both;
+      overflow: auto;
+    }
+  </style>
+</head>
+<body>
+  <h2>Upload, Crop, & Download Video</h2>
+  <input type="file" accept="video/*" id="upload"><br><br>
+
+  <div style="position:relative; display:inline-block;">
+    <video id="video" controls></video>
+    <div id="cropBox" style="width:150px;height:150px;left:0;top:0;"></div>
+  </div>
+  <br>
+  <button id="startCrop">Start Crop & Record</button>
+  <button id="download" disabled>Download Cropped Video</button>
+  <br><br>
+  <video id="croppedPreview" controls></video>
+
+  <script>
+    const upload = document.getElementById('upload');
+    const video = document.getElementById('video');
+    const cropBox = document.getElementById('cropBox');
+    const startCrop = document.getElementById('startCrop');
+    const downloadBtn = document.getElementById('download');
+    const croppedPreview = document.getElementById('croppedPreview');
+
+    let stream, recorder, recordedChunks = [];
+
+    // Load video
+    upload.addEventListener('change', e => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const url = URL.createObjectURL(file);
+      video.src = url;
+      video.load();
+    });
+
+    // Make cropBox draggable
+    let isDragging = false, offset = {};
+    cropBox.addEventListener('mousedown', e => {
+      isDragging = true;
+      offset = {
+        x: e.clientX - cropBox.offsetLeft,
+        y: e.clientY - cropBox.offsetTop
+      };
+    });
+    window.addEventListener('mousemove', e => {
+      if (isDragging) {
+        cropBox.style.left = (e.clientX - offset.x) + 'px';
+        cropBox.style.top = (e.clientY - offset.y) + 'px';
+      }
+    });
+    window.addEventListener('mouseup', () => isDragging = false);
+
+    startCrop.addEventListener('click', () => {
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+
+      const rect = cropBox.getBoundingClientRect();
+      const videoRect = video.getBoundingClientRect();
+
+      const scaleX = video.videoWidth / videoRect.width;
+      const scaleY = video.videoHeight / videoRect.height;
+
+      const cropX = (rect.left - videoRect.left) * scaleX;
+      const cropY = (rect.top - videoRect.top) * scaleY;
+      const cropW = rect.width * scaleX;
+      const cropH = rect.height * scaleY;
+
+      canvas.width = cropW;
+      canvas.height = cropH;
+
+      stream = canvas.captureStream();
+      recorder = new MediaRecorder(stream);
+      recordedChunks = [];
+
+      recorder.ondataavailable = e => recordedChunks.push(e.data);
+      recorder.onstop = () => {
+        const blob = new Blob(recordedChunks, { type: 'video/webm' });
+        const url = URL.createObjectURL(blob);
+        croppedPreview.src = url;
+        downloadBtn.href = url;
+        downloadBtn.download = 'cropped-video.webm';
+        downloadBtn.disabled = false;
+      };
+
+      recorder.start();
+      video.play();
+
+      const draw = () => {
+        if (video.paused || video.ended) {
+          recorder.stop();
+          return;
+        }
+        ctx.drawImage(video, cropX, cropY, cropW, cropH, 0, 0, cropW, cropH);
+        requestAnimationFrame(draw);
+      };
+      draw();
+    });
+
+    downloadBtn.addEventListener('click', () => {
+      // Done via href/download attr
+    });
+  </script>
+</body>
+</html>
